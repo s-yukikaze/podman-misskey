@@ -1,0 +1,113 @@
+# Save the output of this file and use kubectl create -f to import
+# it into Kubernetes.
+#
+# Created with podman-3.4.4
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2023-07-17T08:30:50Z"
+  labels:
+    app: pod-misskey
+  name: pod-misskey
+spec:
+  containers:
+  - args:
+    - redis-server
+    - --save
+    - "60"
+    - "1"
+    - --loglevel
+    - warning
+    image: docker.io/library/redis:latest
+    name: redis
+    resources: {}
+    ports:
+    - containerPort: 3000
+      hostPort: 3000
+    securityContext:
+      capabilities:
+        drop:
+        - CAP_MKNOD
+        - CAP_NET_RAW
+        - CAP_AUDIT_WRITE
+    readinessProbe:
+      exec:
+        command:
+          - redis-cli
+          - ping
+        initialDelaySeconds: 10
+        timeoutSeconds: 10
+    volumeMounts:
+    - mountPath: /data
+      name: ab0a3291b731fbb084485ea6f3a2b6aedb0b708a3d526a126883b6ddc9f3112f-pvc
+  - args:
+    - postgres
+    image: docker.io/library/postgres:15.3
+    name: postgres
+    resources: {}
+    env:
+      - name: POSTGRES_USER
+        value: "misskey"
+      - name: POSTGRES_PASSWORD
+        value: "oyasumisskey"
+      - name: POSTGRES_DB
+        value: "misskey"
+    securityContext:
+      capabilities:
+        drop:
+        - CAP_MKNOD
+        - CAP_NET_RAW
+        - CAP_AUDIT_WRITE
+    readinessProbe:
+      exec:
+        command:
+          - pg_isready
+        initialDelaySeconds: 10
+        timeoutSeconds: 10
+    volumeMounts:
+    - mountPath: /var/lib/postgresql/data
+      name: home-changeme-.local-pgsql-host-0
+  - args:
+    - pnpm
+    - run
+    - migrateandstart
+    image: docker.io/misskey/misskey:latest
+    name: misskey
+    resources: {}
+    env:
+      - name: POSTGRES_USER
+        value: "misskey"
+      - name: POSTGRES_PASSWORD
+        value: "oyasumisskey"
+      - name: POSTGRES_DB
+        value: "misskey"
+    securityContext:
+      capabilities:
+        drop:
+        - CAP_MKNOD
+        - CAP_NET_RAW
+        - CAP_AUDIT_WRITE
+    volumeMounts:
+    - mountPath: /misskey/files
+      name: home-changeme-.local-misskey-files-host-0
+    - mountPath: /misskey/.config
+      name: home-changeme-.config-misskey-host-1
+      readOnly: true
+  restartPolicy: Never
+  volumes:
+  - hostPath:
+      path: /home/changeme/.local/misskey/files
+      type: Directory
+    name: home-changeme-.local-misskey-files-host-0
+  - hostPath:
+      path: /home/changeme/.config/misskey
+      type: Directory
+    name: home-changeme-.config-misskey-host-1
+  - name: ab0a3291b731fbb084485ea6f3a2b6aedb0b708a3d526a126883b6ddc9f3112f-pvc
+    persistentVolumeClaim:
+      claimName: ab0a3291b731fbb084485ea6f3a2b6aedb0b708a3d526a126883b6ddc9f3112f
+  - hostPath:
+      path: /home/changeme/.local/pgsql
+      type: Directory
+    name: home-changeme-.local-pgsql-host-0
+status: {}
